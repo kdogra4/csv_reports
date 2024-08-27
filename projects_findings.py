@@ -131,7 +131,7 @@ def get_findings(projects):
                     try:
                         epss_probability = vulnerability_spec.get("raw", {}).get("epss_record", {}).get("probability", {})
                     except:
-                        probability_score = ""
+                        epss_probability = ""
 
                     extracted_finding = {
                         "project_uuid": project_uuid,
