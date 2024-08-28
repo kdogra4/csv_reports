@@ -110,28 +110,25 @@ def get_findings(projects):
                     try:
                         cve_id = vulnerability_spec.get("raw", {}).get("endor_vulnerability", {}).get("cve_id", {})
                     except:
-                        cve_id = ""
+                        if vulnerability_meta.get("name", "").startswith('CVE'):
+                            cve_id = vulnerability_meta.get("name", "")
+                        else:
+                            cve_id = ""
 
                     #Check if CVSS exists
-                    try: 
-                        cvss_v3_severity = vulnerability_spec.get("cvss_v3_severity", {})
-                        cvss_severity_level = cvss_v3_severity.get("level", "")
-                        cvss_severity_score = cvss_v3_severity.get("score", "")
-                        cvss_severity_vector= cvss_v3_severity.get("vector", "")
-                    except:
-                        cvss_severity_level, cvss_severity_score, cvss_severity_vector = ""
+                    cvss_v3_severity = vulnerability_spec.get("cvss_v3_severity", {}) if vulnerability_spec else []
+                    cvss_severity_level = cvss_v3_severity.get("level", "") if cvss_v3_severity else ""
+                    cvss_severity_score = cvss_v3_severity.get("score", "") if cvss_v3_severity else ""
+                    cvss_severity_vector= cvss_v3_severity.get("vector", "") if cvss_v3_severity else ""
 
-                    #Check if CISA exists
-                    try:
-                        cisa_action_due = vulnerability_spec.get("raw", {}).get("nvd_vulnerability", {}).get("cve", {}).get("cisa_action_due", {})
-                    except:
-                        cisa_action_due = ""    
+                    # #Check if CISA KEV exists 
+                    kev_record = vulnerability_spec.get("raw", {}).get("kev_record", {}) if vulnerability_spec else []
+                    kev_due_date = kev_record.get("due_date", "") if kev_record else ""
+
 
                     #Check if EPSS Probability exists
-                    try:
-                        epss_probability = vulnerability_spec.get("raw", {}).get("epss_record", {}).get("probability", {})
-                    except:
-                        epss_probability = ""
+                    epss_record = vulnerability_spec.get("raw", {}).get("epss_record", {}) if vulnerability_spec else []
+                    epss_probability = epss_record.get("probability", {}) if epss_record else ""
 
                     extracted_finding = {
                         "project_uuid": project_uuid,
@@ -145,7 +142,7 @@ def get_findings(projects):
                         "cvss_severity_level": cvss_severity_level,
                         "cvss_severity_score": cvss_severity_score,
                         "cvss_severity_vector": cvss_severity_vector,
-                        "cisa_action_due": cisa_action_due,
+                        "kev_due_date": kev_due_date,
                         "epss_probability": epss_probability,
                         "create_time": finding["meta"].get("create_time")
                     }
@@ -161,7 +158,7 @@ def get_findings(projects):
     return all_findings
 
 def save_findings_to_csv(findings, filename='findings.csv'):
-    fieldnames = ["project_uuid", "project_name", "uuid", "name", "description", "vulnerability_name", "vulnerability_description", "cve_id", "cvss_severity_level", "cvss_severity_score", "cvss_severity_vector", "cisa_action_due", "epss_probability", "create_time"]
+    fieldnames = ["project_uuid", "project_name", "uuid", "name", "description", "vulnerability_name", "vulnerability_description", "cve_id", "cvss_severity_level", "cvss_severity_score", "cvss_severity_vector", "kev_due_date", "epss_probability", "create_time"]
     with open(filename, mode='w', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
