@@ -85,7 +85,7 @@ def get_findings(projects):
         print(f"Fetching findings for project {project_uuid} ({project_name})...")
         url = f"{API_URL}/namespaces/{ENDOR_NAMESPACE}/findings"
         params = {
-            'list_parameters.filter': f'spec.project_uuid=={project_uuid} and spec.finding_categories contains ["FINDING_CATEGORY_VULNERABILITY"] and (spec.level=="FINDING_LEVEL_CRITICAL" or spec.level=="FINDING_LEVEL_HIGH")'
+            'list_parameters.filter': f'spec.project_uuid=={project_uuid} and spec.finding_categories contains ["FINDING_CATEGORY_VULNERABILITY"] and (spec.level=="FINDING_LEVEL_CRITICAL" or spec.level=="FINDING_LEVEL_HIGH") and context.type in [CONTEXT_TYPE_MAIN, CONTEXT_TYPE_REF]'
         }
         next_page_id = None
 
