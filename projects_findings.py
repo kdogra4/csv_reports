@@ -106,14 +106,14 @@ def get_findings(projects):
                     vulnerability_meta = finding_metadata.get("vulnerability", {}).get("meta", {})
                     vulnerability_spec = finding_metadata.get("vulnerability", {}).get("spec", {})
                     
-                    #Check if CVE exists
-                    try:
-                        cve_id = vulnerability_spec.get("raw", {}).get("endor_vulnerability", {}).get("cve_id", {})
-                    except:
-                        if vulnerability_meta.get("name", "").startswith('CVE'):
-                            cve_id = vulnerability_meta.get("name", "")
-                        else:
-                            cve_id = ""
+                    #Check if CVSS exists
+                    cve_id = vulnerability_meta.get("name", "") if vulnerability_meta.get("name", "").startswith('CVE') else ""
+                    if not cve_id:
+                        aliases = vulnerability_spec.get("aliases") if vulnerability_spec else []
+                        for alias in aliases:
+                            if alias.startswith('CVE'):
+                                cve_id = alias
+                                break
 
                     #Check if CVSS exists
                     cvss_v3_severity = vulnerability_spec.get("cvss_v3_severity", {}) if vulnerability_spec else []
