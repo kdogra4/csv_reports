@@ -100,6 +100,7 @@ def get_findings(projects):
 
             response_data = response.json()
             findings = response_data.get('list', {}).get('objects', [])
+
             for finding in findings:
                 try:
                     finding_metadata = finding.get("spec", {}).get("finding_metadata", {})
@@ -124,6 +125,7 @@ def get_findings(projects):
                     # #Check if CISA KEV exists 
                     kev_record = vulnerability_spec.get("raw", {}).get("kev_record", {}) if vulnerability_spec else []
                     kev_due_date = kev_record.get("due_date", "") if kev_record else ""
+                    kev_date_added = kev_record.get("date_added", "") if kev_record else ""
 
 
                     #Check if EPSS Probability exists
@@ -133,7 +135,8 @@ def get_findings(projects):
                     extracted_finding = {
                         "project_uuid": project_uuid,
                         "project_name": project_name,
-                        "uuid": finding["uuid"],
+                        "finding_uuid": finding["uuid"],
+                        "package_uuid": finding["meta"].get("parent_uuid"),
                         "name": finding["meta"].get("name"),
                         "description": finding["meta"].get("description"),
                         "vulnerability_name": vulnerability_meta.get("name"),
@@ -143,6 +146,7 @@ def get_findings(projects):
                         "cvss_severity_score": cvss_severity_score,
                         "cvss_severity_vector": cvss_severity_vector,
                         "kev_due_date": kev_due_date,
+                        "kev_date_added": kev_date_added,
                         "epss_probability": epss_probability,
                         "create_time": finding["meta"].get("create_time")
                     }
@@ -158,7 +162,7 @@ def get_findings(projects):
     return all_findings
 
 def save_findings_to_csv(findings, filename='findings.csv'):
-    fieldnames = ["project_uuid", "project_name", "uuid", "name", "description", "vulnerability_name", "vulnerability_description", "cve_id", "cvss_severity_level", "cvss_severity_score", "cvss_severity_vector", "kev_due_date", "epss_probability", "create_time"]
+    fieldnames = ["project_uuid", "project_name", "finding_uuid", "package_uuid", "name", "description", "vulnerability_name", "vulnerability_description", "cve_id", "cvss_severity_level", "cvss_severity_score", "cvss_severity_vector", "kev_due_date", "kev_date_added", "epss_probability", "create_time"]
     with open(filename, mode='w', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
