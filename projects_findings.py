@@ -42,10 +42,6 @@ HEADERS = {
     "Request-Timeout": "60"  # Set the request timeout to 60 seconds
 }
 
-def sanitize_filename(filename):
-    # Remove any character that is not a letter, number, underscore, or hyphen
-    return re.sub(r'[^\w\-_\.]', '_', filename)
-
 def get_projects(tags=None):
     print("Fetching projects...")
    
@@ -89,8 +85,7 @@ def get_findings(projects):
         print(f"Fetching findings for project {project_uuid} ({project_name})...")
         url = f"{API_URL}/namespaces/{ENDOR_NAMESPACE}/findings"
         params = {
-            'list_parameters.filter': f'spec.project_uuid=={project_uuid} and (spec.level=="FINDING_LEVEL_CRITICAL" or spec.level=="FINDING_LEVEL_HIGH")',
-            'list_parameters.mask': 'uuid,meta,spec.finding_metadata.vulnerability.meta.name,spec.finding_metadata.vulnerability.meta.description'
+            'list_parameters.filter': f'spec.project_uuid=={project_uuid} and spec.finding_categories contains ["FINDING_CATEGORY_VULNERABILITY"] and (spec.level=="FINDING_LEVEL_CRITICAL" or spec.level=="FINDING_LEVEL_HIGH")'
         }
         next_page_id = None
 
@@ -105,19 +100,55 @@ def get_findings(projects):
 
             response_data = response.json()
             findings = response_data.get('list', {}).get('objects', [])
+
             for finding in findings:
                 try:
-                    # Check if the necessary nested data exists
                     finding_metadata = finding.get("spec", {}).get("finding_metadata", {})
                     vulnerability_meta = finding_metadata.get("vulnerability", {}).get("meta", {})
+                    vulnerability_spec = finding_metadata.get("vulnerability", {}).get("spec", {})
+                    
+                    #Check if CVSS exists
+                    cve_id = vulnerability_meta.get("name", "") if vulnerability_meta.get("name", "").startswith('CVE') else ""
+                    if not cve_id:
+                        aliases = vulnerability_spec.get("aliases") if vulnerability_spec else []
+                        for alias in aliases:
+                            if alias.startswith('CVE'):
+                                cve_id = alias
+                                break
+
+                    #Check if CVSS exists
+                    cvss_v3_severity = vulnerability_spec.get("cvss_v3_severity", {}) if vulnerability_spec else []
+                    cvss_severity_level = cvss_v3_severity.get("level", "") if cvss_v3_severity else ""
+                    cvss_severity_score = cvss_v3_severity.get("score", "") if cvss_v3_severity else ""
+                    cvss_severity_vector= cvss_v3_severity.get("vector", "") if cvss_v3_severity else ""
+
+                    # #Check if CISA KEV exists 
+                    kev_record = vulnerability_spec.get("raw", {}).get("kev_record", {}) if vulnerability_spec else []
+                    kev_due_date = kev_record.get("due_date", "") if kev_record else ""
+                    kev_date_added = kev_record.get("date_added", "") if kev_record else ""
+
+
+                    #Check if EPSS Probability exists
+                    epss_record = vulnerability_spec.get("raw", {}).get("epss_record", {}) if vulnerability_spec else []
+                    epss_probability = epss_record.get("probability", {}) if epss_record else ""
+
                     extracted_finding = {
                         "project_uuid": project_uuid,
                         "project_name": project_name,
-                        "uuid": finding["uuid"],
+                        "finding_uuid": finding["uuid"],
+                        "package_uuid": finding["meta"].get("parent_uuid"),
                         "name": finding["meta"].get("name"),
                         "description": finding["meta"].get("description"),
                         "vulnerability_name": vulnerability_meta.get("name"),
-                        "vulnerability_description": vulnerability_meta.get("description")
+                        "vulnerability_description": vulnerability_meta.get("description"),
+                        "cve_id": cve_id,
+                        "cvss_severity_level": cvss_severity_level,
+                        "cvss_severity_score": cvss_severity_score,
+                        "cvss_severity_vector": cvss_severity_vector,
+                        "kev_due_date": kev_due_date,
+                        "kev_date_added": kev_date_added,
+                        "epss_probability": epss_probability,
+                        "create_time": finding["meta"].get("create_time")
                     }
                     all_findings.append(extracted_finding)
                 except Exception as e:
@@ -131,7 +162,7 @@ def get_findings(projects):
     return all_findings
 
 def save_findings_to_csv(findings, filename='findings.csv'):
-    fieldnames = ["project_uuid", "project_name", "uuid", "name", "description", "vulnerability_name", "vulnerability_description"]
+    fieldnames = ["project_uuid", "project_name", "finding_uuid", "package_uuid", "name", "description", "vulnerability_name", "vulnerability_description", "cve_id", "cvss_severity_level", "cvss_severity_score", "cvss_severity_vector", "kev_due_date", "kev_date_added", "epss_probability", "create_time"]
     with open(filename, mode='w', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
